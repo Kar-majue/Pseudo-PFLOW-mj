@@ -73,4 +73,58 @@ public class DrmLoader {
         }
 		return network;
 	}
+
+	public static Network loadFromS3(List<String> fileData) {
+        Network network = new Network();
+        WKTReader wktreader = new WKTReader();
+
+        try {
+            for (String record : fileData) {
+                String[] items = record.split("\t");
+                String gid = items[0];
+                String src = items[1];
+                String tgt = items[2];
+                int length = Integer.parseInt(items[3]);
+                int rdwdcd = Integer.parseInt(items[4]);
+                int lanecd = Integer.parseInt(items[5]);
+                int regcd = Integer.parseInt(items[6]);
+                int rdclasscd = Integer.parseInt(items[7]);
+
+                boolean way = DrmLink.isOneway(regcd);
+                
+                // Parse geometry object
+                Geometry geom = wktreader.read(items[12]);
+                LineString line = null;
+                if (geom instanceof LineString) {
+                    line = (LineString) geom;
+                } else if (geom instanceof MultiLineString) {
+                    line = (LineString) ((MultiLineString) geom).getGeometryN(0);
+                }
+
+                // Build network nodes and links
+                Point p0 = line.getStartPoint();
+                Point p1 = line.getEndPoint();
+                Node n0, n1;
+                List<ILonLat> list = GeometryUtils.createPointList(line);
+
+                if (DrmLink.isOnewayAndReverse(regcd)) {
+                    n0 = network.hasNode(tgt) ? network.getNode(tgt) : new Node(tgt, p1.getX(), p1.getY());
+                    n1 = network.hasNode(src) ? network.getNode(src) : new Node(src, p0.getX(), p0.getY());
+                    if (list != null && !list.isEmpty()) {
+                        Collections.reverse(list);
+                    }
+                } else {
+                    n0 = network.hasNode(src) ? network.getNode(src) : new Node(src, p0.getX(), p0.getY());
+                    n1 = network.hasNode(tgt) ? network.getNode(tgt) : new Node(tgt, p1.getX(), p1.getY());
+                }
+
+                DrmLink link = new DrmLink(gid, n0, n1, length, length, length, way, rdclasscd, rdwdcd, lanecd, list);
+                network.addLink(link);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return network;
+    }
 }

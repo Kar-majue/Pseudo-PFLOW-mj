@@ -23,6 +23,12 @@
           <version>1.9.0</version>  <!-- Use the latest version available -->
       </dependency>
 
+      <dependency>
+        <groupId>jp.ac.ut.csis</groupId>
+        <artifactId>pflowlib</artifactId>
+        <version>1.0</version>
+      </dependency>
+
 
       <!-- GeoTools Core Modules -->
       <dependency>
@@ -84,6 +90,38 @@
           <artifactId>httpclient</artifactId>
           <version>4.5.14</version> <!-- 将这里的版本号更新为最新版本 -->
       </dependency>
+      <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpmime</artifactId>
+            <version>4.5.14</version>
+        </dependency>
+            <!-- AWS SDK for Java (S3) -->
+        <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>signin</artifactId>
+        <version>2.41.24</version>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>2.41.24</version> <!-- 请使用最新版本 -->
+            <exclusions>
+            <exclusion>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpclient</artifactId>
+            </exclusion>
+        </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sdk-core</artifactId>
+            <version>2.41.24</version>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>auth</artifactId>
+            <version>2.41.24</version>
+        </dependency>
 	   	<dependency>
     <groupId>org.json</groupId>
     <artifactId>json</artifactId>
@@ -98,6 +136,20 @@
 	
   </dependencies>
       <repositories>
+      <repository>
+        <id>onebusaway-releases</id>
+        <name>OneBusAway (Camsys Apps mirror)</name>
+        <url>https://repo.camsys-apps.com/releases/</url>
+        <releases><enabled>true</enabled></releases>
+        <snapshots><enabled>false</enabled></snapshots>
+      </repository>
+      <repository>
+        <id>central</id>
+        <name>Maven Central</name>
+        <url>https://repo1.maven.org/maven2</url>
+        <releases><enabled>true</enabled></releases>
+        <snapshots><enabled>false</enabled></snapshots>
+      </repository>
       <repository>
         <id>osgeo</id>
         <name>OSGeo Release Repository</name>
@@ -134,6 +186,25 @@
 					</descriptorRefs>
 				</configuration>
 				</plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                    <id>add-src-as-source</id>
+                    <phase>generate-sources</phase>
+                    <goals>
+                        <goal>add-source</goal>
+                    </goals>
+                    <configuration>
+                        <sources>
+                        <source>src</source>
+                        </sources>
+                    </configuration>
+                    </execution>
+                </executions>
+            </plugin>
 		</plugins>
 	</build>
 </project>

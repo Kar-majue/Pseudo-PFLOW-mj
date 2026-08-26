@@ -8,6 +8,11 @@ public class Trip {
 	private long depTime;
 	private ILonLat origin;
 	private ILonLat destination;
+
+	private String originStation;
+	private long originStationTime;
+	private String destinationStation;
+	private long destinationStationTime;
 	
 	public Trip(ETransport transport, EPurpose purpose, long depTime, ILonLat origin, ILonLat destination) {
 		this.transport = transport;
@@ -39,5 +44,37 @@ public class Trip {
 
 	public ILonLat getDestination() {
 		return destination;
+	}
+
+	public String getOriginStation() {
+		return originStation;
+	}
+
+	public long getOriginStationTime() {
+		return originStationTime;
+	}
+
+	public String getDestinationStation() {
+		return destinationStation;
+	}
+
+	public long getDestinationStationTime() {
+		return destinationStationTime;
+	}
+
+	public void setOriginStation(String originStation) {
+		this.originStation = originStation;
+	}
+
+	public void setOriginStationTime(long originStationTime) {
+		this.originStationTime = originStationTime;
+	}
+
+	public void setDestinationStation(String destinationStation) {
+		this.destinationStation = destinationStation;
+	}
+
+	public void setDestinationStationTime(long destinationStationTime) {
+		this.destinationStationTime = destinationStationTime;
 	}
 }

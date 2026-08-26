@@ -46,7 +46,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class TripGenerator_WebAPI_refactor {
+public class TripGenerator_WebAPI_refactor_taxi_nishio {
 
     private final Network drm;
 	private final Network railway;
@@ -64,9 +64,11 @@ public class TripGenerator_WebAPI_refactor {
 	private static final double FATIGUE_INDEX_BICYCLE = 0.9;
 	private static final double FARE_INIT = 150; // Japanese yen, only for vehicle
 	private static final double CAR_AVAILABILITY = 0.7; // Parameter for explain people using car without ownership
+	private static final double TAXI_WAIT_SECOND = 5 * 60; // 5 mins waiting time
+	private static final double TAXI_FARE_FIX = 300; // Japanese yen, taxi fare
 
 
-	public TripGenerator_WebAPI_refactor(Country japan, Network drm, Network railway) throws Exception {
+	public TripGenerator_WebAPI_refactor_taxi_nishio(Country japan, Network drm, Network railway) throws Exception {
 		super();
         this.drm = drm;
 		this.railway = railway;
@@ -199,6 +201,7 @@ public class TripGenerator_WebAPI_refactor {
 				case WALK: return 6;
 				case BICYCLE: return 3;
 				case CAR: return 1;
+				case TAXI: return 1;
 				default: return 1;
 			}
 		}
@@ -219,16 +222,25 @@ public class TripGenerator_WebAPI_refactor {
 
 			if(route!=null){
 				double roadtime = route.getCost(); // seconds
+				// CAR
 				double roadfare = FARE_INIT + route.getLength() / 1000 * FARE_PER_KILOMETER; // length in meters, 150 as initial cost to avoid short distance car travel
 				double roadcost = roadfare + roadtime / 3600 * FARE_PER_HOUR;
 				if(person.hasCar() || getRandom() < CAR_AVAILABILITY){
 					choices.put(ETransport.CAR, roadcost);
 				}
 
+				// TAXI
+				double travelTimeCost = roadtime / 3600 * FARE_PER_HOUR;
+				double taxiWaitCost = (TAXI_WAIT_SECOND / 3600.0) * FARE_PER_HOUR;
+    			double taxiCost = TAXI_FARE_FIX + travelTimeCost + taxiWaitCost;
+    			choices.put(ETransport.TAXI, taxiCost);
+
+				// WALK
 				double walktime = route.getLength() / 1.38;
 				double walkcost = walktime / 3600 * FARE_PER_HOUR * FATIGUE_INDEX_WALK;
 				choices.put(ETransport.WALK, walkcost);
-
+				
+				// BIKE
 				if(person.hasBike()){
 					double biketime = walktime / 2;
 					double bikecost = biketime / 3600 * FARE_PER_HOUR * FATIGUE_INDEX_BICYCLE;
@@ -502,7 +514,7 @@ public class TripGenerator_WebAPI_refactor {
 							int multiplier = calculateMultiplier(nextMode);
 							long travelTime = 0;
 
-							if (nextMode == ETransport.WALK || nextMode == ETransport.BICYCLE || nextMode == ETransport.CAR) {
+							if (nextMode == ETransport.WALK || nextMode == ETransport.BICYCLE || nextMode == ETransport.CAR || nextMode == ETransport.TAXI) {
 								travelTime = calculateTravelTime(route, multiplier);
 								endTime += travelTime;
 
@@ -731,10 +743,10 @@ public class TripGenerator_WebAPI_refactor {
 		Network station = DataAccessor.loadLocationData(stationFile);
 		japan.setStation(station);
 
-		String outputDir = "/home/majue/sip_case_study/Pseudo-PFLOW/oyama_case/person/";
+		String outputDir = new File(root, "nishioshi_case/person/").getPath() + File.separator;
 
 		ArrayList<Integer> prefectureCodes = new ArrayList<>(Arrays.asList(
-				22
+				23
 //				11
 //				22, 16, 28,
 //				13,14,12,11,
@@ -746,8 +758,8 @@ public class TripGenerator_WebAPI_refactor {
 
 		for (int i: prefectureCodes){
 
-			File tripDir = new File(outputDir+"trip_origin/", String.valueOf(i));
-			File trajDir = new File(outputDir+"trajectory_origin/", String.valueOf(i));
+			File tripDir = new File(outputDir+"trip_taxi/", String.valueOf(i));
+			File trajDir = new File(outputDir+"trajectory_taxi/", String.valueOf(i));
 			System.out.println("Start prefecture:" + i +" "+ tripDir.mkdirs() +" "+ trajDir.mkdirs());
 			String roadFile = String.format("%sdrm_%02d.tsv", inputDir+"/network/", i);
 
@@ -759,9 +771,9 @@ public class TripGenerator_WebAPI_refactor {
 			System.out.println("Activity Directory: " + actDir);
 			for(File file: Objects.requireNonNull(actDir.listFiles())){
 				if (file.getName().contains(".csv")) {
-					String tripFileName = outputDir + "trip_origin/" + i + "/trip_" + file.getName().substring(7, 18) + ".csv";
-
-					String trajectoryFileName = outputDir + "trajectory_origin/" + i + "/trajectory_" + file.getName().substring(7,18) + ".csv";
+					String fileSuffix = file.getName().replaceFirst("^person_", "").replaceFirst("\\.csv$", "");
+					String tripFileName = new File(tripDir, "trip_" + fileSuffix + ".csv").getPath();
+					String trajectoryFileName = new File(trajDir, "trajectory_" + fileSuffix + ".csv").getPath();
 
 
 					// Check if the files already exist
@@ -770,7 +782,7 @@ public class TripGenerator_WebAPI_refactor {
 //					}
 
 					long starttime = System.currentTimeMillis();
-					TripGenerator_WebAPI_refactor worker = new TripGenerator_WebAPI_refactor(japan, road, railway);
+					TripGenerator_WebAPI_refactor_taxi_nishio worker = new TripGenerator_WebAPI_refactor_taxi_nishio(japan, road, railway);
 					List<Person> agents = PersonAccessor.loadActivity(file.getAbsolutePath(), mfactor, carRatio, bikeRatio);
 					System.out.printf("%s%n", file.getName());
 					worker.generate(agents);

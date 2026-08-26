@@ -151,6 +151,7 @@ public class NonCommuter extends ActGenerator {
 
 		System.out.println("start");
 
+		String output = null;
 		String inputDir = null;
 		String root = null;
 
@@ -163,6 +164,7 @@ public class NonCommuter extends ActGenerator {
 
 		root = prop.getProperty("root");
 		inputDir = prop.getProperty("inputDir");
+		output = "/home/majue/sip_case_study/Pseudo-PFLOW/oyama_case/person";
 		System.out.println("Root Directory: " + root);
 		System.out.println("Input Directory: " + inputDir);
 
@@ -199,11 +201,11 @@ public class NonCommuter extends ActGenerator {
 		int mfactor = 1;
 
 		// create activities
-		String outputDir = String.format("%s/activity/", root);
+		String outputDir = String.format("%s/activity/", output);
 
 		long starttime = System.currentTimeMillis();
         ArrayList<Integer> prefectureCodes = new ArrayList<>(Arrays.asList(
-            22, 23
+            22
             //13, 14, 23, 19
             //, 12, 11, 27, 26, 24, 21, 28
         ));
@@ -212,7 +214,7 @@ public class NonCommuter extends ActGenerator {
 			// create directory
 			File prefDir = new File(outputDir, String.valueOf(i));
 			System.out.println("Start prefecture:" + i + prefDir.mkdirs());
-			File householdDir = new File(String.format("%s/agent/", root), String.valueOf(i));
+			File householdDir = new File(String.format("%s/agent/", output), String.valueOf(i));
 			// String householdDir = String.format("%s/agent/", root);
 
 			// load markov data

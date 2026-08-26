@@ -275,6 +275,7 @@ public class Student extends ActGenerator {
 		
 		System.out.println("start");
 
+		String output = null;
 		String inputDir = null;
 		String root = null;
 
@@ -286,6 +287,7 @@ public class Student extends ActGenerator {
 		prop.load(inputStream);
 
 		root = prop.getProperty("root");
+		output = "/home/majue/sip_case_study/Pseudo-PFLOW/nishioshi_case/person";
 		inputDir = prop.getProperty("inputDir");
 		System.out.println("Root Directory: " + root);
 		System.out.println("Input Directory: " + inputDir);
@@ -345,10 +347,10 @@ public class Student extends ActGenerator {
 		
 		// create activities
 
-		String outputDir = String.format("%s/activity/", root);
+		String outputDir = String.format("%s/activity/", output);
 
         ArrayList<Integer> prefectureCodes = new ArrayList<>(Arrays.asList(
-            22, 23
+            23
             // 13, 14, 23, 19
             //, 12, 11, 27, 26, 24, 21, 28
         ));
@@ -357,7 +359,7 @@ public class Student extends ActGenerator {
 			// create directory
 			File prefDir = new File(outputDir, String.valueOf(i));
 			System.out.println("Start prefecture:" + i + prefDir.mkdirs());
-			File householdDir = new File(String.format("%s/agent/", root), String.valueOf(i));
+			File householdDir = new File(String.format("%s/agent/", output), String.valueOf(i));
 			// String householdDir = String.format("%s/agent/", root);
 
 			// load markov data

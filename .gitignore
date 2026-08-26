@@ -53,3 +53,11 @@ __pycache__/
 *.tsv
 *.xlsx
 *.pdf
+
+takehara_case
+oyama_case
+nishoshi_case
+nanbus
+.history/
+data/
+download/
