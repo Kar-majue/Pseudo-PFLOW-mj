@@ -198,13 +198,59 @@ CAR_AVAILABILITY
 これらは `determineTransportMode(...)` の交通手段選択 cost に利用されます。
 
 - car cost = 初乗り相当 cost + 距離 cost + 時間価値 cost
+- taxi cost = taxi fare + travel time cost + wait time cost
 - walk cost = 歩行時間 * 時間価値 * 疲労係数
 - bicycle cost = 自転車時間 * 時間価値 * 疲労係数
 - mix / public transit cost = WebAPI fare + WebAPI total time * 時間価値
 
 `CAR_AVAILABILITY` を大きくすると、車を所有していない agent でも car が選択肢に入りやすくなります。`MIN_TRANSIT_DISTANCE` を大きくすると、短距離 trip では public transit / mixed route を問い合わせにくくなります。
 
-### 7.2 西尾市 taxi パラメータ
+### 7.2 occupation / purpose による時間価値パラメータ
+
+3 つの Java ファイルには、occupation と purpose によって時間価値を変える関数が入っています。
+
+```java
+getOccupationCoefficient(ELabor labor)
+getPurposeCoefficient(EPurpose purpose)
+calculateVOT(ELabor labor, EPurpose purpose)
+```
+
+現在の時間価値は以下で計算されます。
+
+```text
+VOT = FARE_PER_HOUR * occupation coefficient * purpose coefficient
+```
+
+occupation coefficient の現在値は以下です。
+
+| ELabor | coefficient |
+| --- | ---: |
+| `WORKER` | `1.2` |
+| `JOBLESS`, `NO_LABOR` | `0.8` |
+| `INFANT`, `PRE_SCHOOL`, `PRIMARY_SCHOOL`, `SECONDARY_SCHOOL`, `HIGH_SCHOOL`, `COLLEGE`, `JUNIOR_COLLEGE` | `1.0` |
+| その他 | `1.0` |
+
+purpose coefficient の現在値は以下です。
+
+| EPurpose | coefficient |
+| --- | ---: |
+| `OFFICE`, `SCHOOL` | `1.5` |
+| `BUSINESS` | `2.0` |
+| `HOSPITAL` | `1.1` |
+| `HOME`, `SHOPPING`, `FREE` | `0.75` |
+| `EATING` | `0.85` |
+| その他 | `1.0` |
+
+これらの coefficient は、car / taxi / walk / bicycle / mix の時間価値 cost に反映されます。例えば taxi では、運賃そのものは taxi fare として扱い、乗車時間と待ち時間の cost に VOT が使われます。
+
+```text
+taxi travel time cost = road time * VOT
+taxi wait time cost = waiting time * VOT
+```
+
+通勤・通学や業務目的の trip で時間をより重く評価したい場合は、`OFFICE`, `SCHOOL`, `BUSINESS` の coefficient を大きくします。自由目的や買い物目的で時間感度を下げたい場合は、`HOME`, `SHOPPING`, `FREE`, `EATING` の coefficient を小さくします。
+
+### 7.3 西尾市 taxi パラメータ
 
 対象ファイル：
 
@@ -227,7 +273,7 @@ taxi cost = TAXI_FARE_FIX + travel time cost + wait time cost
 
 固定運賃、補助額、待ち時間の感度分析に使いやすい形です。
 
-### 7.3 小山市 taxi パラメータ
+### 7.4 小山市 taxi パラメータ
 
 対象ファイル：
 
@@ -255,7 +301,7 @@ taxi cost = taxi fare * TAXI_DISCOUNT + travel time cost + wait time cost
 
 初乗り距離、初乗り運賃、加算距離、加算運賃、相乗り割引、待ち時間を調整できます。
 
-### 7.4 小山市 on-demand GTFS パラメータ
+### 7.5 小山市 on-demand GTFS パラメータ
 
 対象ファイル：
 
@@ -321,71 +367,4 @@ nishio_oyama_case_guide.md
 
 ```text
 target/DSPFlow-0.0.1-SNAPSHOT-jar-with-dependencies.jar
-```
-
-## 10. 現在の package から除外できるファイル
-
-今回の西尾市・小山市 trip / trajectory 再計算に不要なため、軽量化する場合は以下を除外できます。
-
-```text
-.git/
-.github/
-.agents/
-.codex/
-.history/
-.vscode/
-__pycache__/
-download/
-target/
-META-INF/
-docs/
-src/scripts/
-nanbus/
-takehara_case/
-data/markov/
-data/mnl/
-data/input/
-data/school/
-data/pre_labor_rate.csv
-data/pre_holiday_rate.csv
-data/pre_enrollment_rate.csv
-data/city_census_od.csv
-data/city_neighbors.tsv
-data/city_hospital.csv
-data/city_pre_school.csv
-data/city_restaurant.csv
-data/city_retail.csv
-data/city_school.csv
-data/city_tatemono.csv
-data/mesh_ecensus.csv
-data/act_transport.csv
-data/input.json
-data/network/drm_16.tsv
-```
-
-case folder 内の過去の計算結果も、調参実行そのものには不要です。比較用に残したい場合だけ渡してください。
-
-```text
-nishioshi_case/person/trip/
-nishioshi_case/person/trajectory/
-nishioshi_case/person/trip_taxi/
-nishioshi_case/person/trajectory_taxi/
-nishioshi_case/trip_analysis.ipynb
-nishioshi_case/trip_23213.csv
-oyama_case/person/trip_origin/
-oyama_case/person/trajectory_origin/
-oyama_case/person/trip_taxi/
-oyama_case/person/trajectory_taxi/
-oyama_case/ondemand_person/trip/
-oyama_case/ondemand_person/trajectory/
-oyama_case/trip_analysis.ipynb
-oyama_case/person_22344.csv
-```
-
-ただし、以下の activity folder は削除しないでください。
-
-```text
-nishioshi_case/person/activity/23/
-oyama_case/person/activity/22/
-oyama_case/ondemand_person/activity/22/
 ```

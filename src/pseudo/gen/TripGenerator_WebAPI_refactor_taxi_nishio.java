@@ -34,7 +34,7 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.util.EntityUtils;
-import org.jboss.netty.util.internal.ThreadLocalRandom;
+import java.util.concurrent.ThreadLocalRandom;
 import pseudo.acs.DataAccessor;
 import pseudo.acs.PersonAccessor;
 import pseudo.res.*;
@@ -215,35 +215,89 @@ public class TripGenerator_WebAPI_refactor_taxi_nishio {
 			calendar.add(Calendar.MONTH, 9);
 		}
 
-		private ETransport determineTransportMode(Person person, double distance, Route route, Map<String, String> mixedparams, JsonNode[] mixedResultsHolder){
+		// Occupation coefficient (based on ELabor)
+		public double getOccupationCoefficient(ELabor labor) {
+			switch (labor) {
+				case WORKER:
+					return 1.2;
+				case JOBLESS:
+                case NO_LABOR:
+                    return 0.8;
+                case INFANT:
+				case PRE_SCHOOL:
+				case PRIMARY_SCHOOL:
+				case SECONDARY_SCHOOL:
+				case HIGH_SCHOOL:
+				case COLLEGE:
+				case JUNIOR_COLLEGE:
+					return 1.0;
+				default:
+					return 1.0;
+			}
+		}
+
+		// Travel purpose coefficient (based on EPurpose)
+		public double getPurposeCoefficient(EPurpose purpose) {
+			switch (purpose) {
+				case OFFICE:
+                case SCHOOL:
+                    return 1.5;
+				case BUSINESS:
+					return 2.0;
+				case HOSPITAL:
+					return 1.1;
+				case HOME:
+				case SHOPPING:
+                case FREE:
+                    return 0.75;
+				case EATING:
+					return 0.85;
+                default:
+					return 1.0;
+			}
+		}
+
+		// Main function to calculate VOT (based only on occupation and purpose)
+		public double calculateVOT(ELabor labor, EPurpose purpose) {
+			double laborCoef = getOccupationCoefficient(labor);
+			double purposeCoef = getPurposeCoefficient(purpose);
+
+			return Math.round(FARE_PER_HOUR * laborCoef * purposeCoef * 10.0) / 10.0;
+		}
+
+		private ETransport determineTransportMode(Person person, EPurpose purpose, double distance, Route route, Map<String, String> mixedparams, JsonNode[] mixedResultsHolder){
 			ETransport nextMode;
 
 			Map<ETransport, Double> choices = new LinkedHashMap<>();
+			int age = person.getAge();
+			ELabor labor = person.getLabor();
+
+			double vot = calculateVOT(labor, purpose);
 
 			if(route!=null){
 				double roadtime = route.getCost(); // seconds
 				// CAR
 				double roadfare = FARE_INIT + route.getLength() / 1000 * FARE_PER_KILOMETER; // length in meters, 150 as initial cost to avoid short distance car travel
-				double roadcost = roadfare + roadtime / 3600 * FARE_PER_HOUR;
+				double roadcost = roadfare + roadtime / 3600 * vot;
 				if(person.hasCar() || getRandom() < CAR_AVAILABILITY){
 					choices.put(ETransport.CAR, roadcost);
 				}
 
 				// TAXI
-				double travelTimeCost = roadtime / 3600 * FARE_PER_HOUR;
-				double taxiWaitCost = (TAXI_WAIT_SECOND / 3600.0) * FARE_PER_HOUR;
+				double travelTimeCost = roadtime / 3600 * vot;
+				double taxiWaitCost = (TAXI_WAIT_SECOND / 3600.0) * vot;
     			double taxiCost = TAXI_FARE_FIX + travelTimeCost + taxiWaitCost;
     			choices.put(ETransport.TAXI, taxiCost);
 
 				// WALK
 				double walktime = route.getLength() / 1.38;
-				double walkcost = walktime / 3600 * FARE_PER_HOUR * FATIGUE_INDEX_WALK;
+				double walkcost = calculateWalkCost(route, age, vot);
 				choices.put(ETransport.WALK, walkcost);
 				
 				// BIKE
 				if(person.hasBike()){
 					double biketime = walktime / 2;
-					double bikecost = biketime / 3600 * FARE_PER_HOUR * FATIGUE_INDEX_BICYCLE;
+					double bikecost = biketime / 3600 * vot * FATIGUE_INDEX_BICYCLE;
 					choices.put(ETransport.BICYCLE, bikecost);
 				}
 			}
@@ -254,7 +308,7 @@ public class TripGenerator_WebAPI_refactor_taxi_nishio {
 				if (publicTransit) {
 					double mixedfare = mixedResultsHolder[0].get("fare").asDouble();
 					double mixedtime = mixedResultsHolder[0].get("total_time").asDouble(); // Travel time from WebAPI is in minute
-					double mixedcost = mixedfare + mixedtime / 60 * FARE_PER_HOUR;
+					double mixedcost = mixedfare + mixedtime / 60 * vot;
 					choices.put(ETransport.MIX, mixedcost);
 				}
 			}
@@ -266,6 +320,12 @@ public class TripGenerator_WebAPI_refactor_taxi_nishio {
 					.orElse(ETransport.NOT_DEFINED);
 
 			return nextMode;
+		}
+	
+		private double calculateWalkCost(Route route, int age, double vot) {
+			double walkTime = route.getLength() / 1.38; // walking speed
+			double walkCost = walkTime / 3600 * vot * FATIGUE_INDEX_WALK;
+			return age > 65 ? walkCost * 1.3 : walkCost;
 		}
 
 		// Methods to refactor and modularize the code
@@ -509,7 +569,7 @@ public class TripGenerator_WebAPI_refactor_taxi_nishio {
 							JsonNode[] mixedResultsHolder = new JsonNode[1];
 
 							Route route = routing.getRoute(drm, oll.getLon(), oll.getLat(), dll.getLon(), dll.getLat());
-							nextMode = determineTransportMode(person, distance, route, mixedparams, mixedResultsHolder);
+							nextMode = determineTransportMode(person, purpose, distance, route, mixedparams, mixedResultsHolder);
 
 							int multiplier = calculateMultiplier(nextMode);
 							long travelTime = 0;
@@ -648,11 +708,20 @@ public class TripGenerator_WebAPI_refactor_taxi_nishio {
         mixedRoutePost.setHeader("Cookie", "WebApiSessionID=" + sessionid);
 
         HttpResponse mixedRouteResponse = null;
+
+		long startTime = System.currentTimeMillis();
+
         try {
             mixedRouteResponse = executePostRequest(httpClient, mixedRoutePost);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+
+		long endTime = System.currentTimeMillis();
+		long duration = endTime - startTime;
+		System.out.println("Request took: " + duration + " milliseconds");
+		// System.out.println("Status code: " + mixedRouteResponse.getStatusLine().getStatusCode());
+
         ObjectMapper mapper = new ObjectMapper();
 
 		if (mixedRouteResponse.getStatusLine().getStatusCode() == 200) {
@@ -734,16 +803,19 @@ public class TripGenerator_WebAPI_refactor_taxi_nishio {
 		// load data
 		String railFile = String.format("%srailnetwork.tsv", inputDir+"/network/");
 		Network railway = RailLoader.load(railFile);
-
+		System.out.println("Railway loaded: " + railFile);
 
 		String cityFile = String.format("%scity_boundary.csv", inputDir);
 		DataAccessor.loadCityData(cityFile, japan);
+		System.out.println("City File loaded: " + cityFile);
 
 		String stationFile = String.format("%sbase_station.csv", inputDir);
 		Network station = DataAccessor.loadLocationData(stationFile);
 		japan.setStation(station);
+		System.out.println("Station File loaded: " + stationFile);
 
 		String outputDir = new File(root, "nishioshi_case/person/").getPath() + File.separator;
+		System.out.println("Output Directory: " + outputDir);
 
 		ArrayList<Integer> prefectureCodes = new ArrayList<>(Arrays.asList(
 				23
