@@ -111,7 +111,7 @@ public class TripGenerator_WebAPI_refactor_taxi_oyama {
 						.register("http", PlainConnectionSocketFactory.INSTANCE)
 						.build());
 
-		connManager.setMaxTotal(32); // Adjust based on your expected total number of concurrent connections
+		connManager.setMaxTotal(1); // Adjust based on your expected total number of concurrent connections
 		connManager.setDefaultMaxPerRoute(100); // Adjust per route limits based on your API and use case
 
 		return connManager;
@@ -655,7 +655,7 @@ public class TripGenerator_WebAPI_refactor_taxi_oyama {
             mixedparams.put("TransportCode", "3"); // fixed as original
             mixedparams.put("AppDate", "20241001");
             mixedparams.put("AppTime", convertSecondsToHHMM(startTime));
-            mixedparams.put("MaxRoutes", String.valueOf("9"));
+            mixedparams.put("MaxRoutes", String.valueOf("6"));
             mixedparams.put("MaxRadius", String.valueOf("1000"));
             return mixedparams;
         }
@@ -680,7 +680,8 @@ public class TripGenerator_WebAPI_refactor_taxi_oyama {
 	
 	public void generate(List<Person> agents) {
 		// prepare thread processing
-		int numThreads = Runtime.getRuntime().availableProcessors();
+		// int numThreads = Runtime.getRuntime().availableProcessors();
+		int numThreads = 1;
 		System.out.println("NumOfThreads:" + numThreads);
 		
 		List<Callable<Integer> > listTasks = new ArrayList<>();
@@ -721,18 +722,26 @@ public class TripGenerator_WebAPI_refactor_taxi_oyama {
         mixedRoutePost.setHeader("Cookie", "WebApiSessionID=" + sessionid);
 
         HttpResponse mixedRouteResponse = null;
+
+		long startTime = System.currentTimeMillis();
+
         try {
             mixedRouteResponse = executePostRequest(httpClient, mixedRoutePost);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+
+		long endTime = System.currentTimeMillis();
+		long duration = endTime - startTime;
+		System.out.println("Request took: " + duration + " milliseconds");
+
         ObjectMapper mapper = new ObjectMapper();
 
 		if (mixedRouteResponse.getStatusLine().getStatusCode() == 200) {
             String mixedRouteResponseBody = null;
             try {
                 mixedRouteResponseBody = EntityUtils.toString(mixedRouteResponse.getEntity());
-				System.out.println("Request passed.");
+				// System.out.println("Request passed.");
 
             } catch (IOException e) {
                 throw new RuntimeException(e);

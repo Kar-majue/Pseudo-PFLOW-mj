@@ -57,9 +57,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.*;
 
 public class TripGenerator_WebAPI_batch_gtfsapi {
@@ -573,7 +570,7 @@ public class TripGenerator_WebAPI_batch_gtfsapi {
             mixedparams.put("TransportCode", "3"); // fixed as original
             mixedparams.put("AppDate", "20241001");
             mixedparams.put("AppTime", convertSecondsToHHMM(startTime));
-            mixedparams.put("MaxRoutes", String.valueOf("9"));
+            mixedparams.put("MaxRoutes", String.valueOf("6"));
             mixedparams.put("MaxRadius", String.valueOf("1000"));
             return mixedparams;
         }
@@ -990,7 +987,7 @@ public class TripGenerator_WebAPI_batch_gtfsapi {
 	}
 
 	public JsonNode getGtfsBusRoute(CloseableHttpClient httpClient, String appSession, String feedid, String sessionId, List<Map<String, String>> paramList) {
-		long startTime = System.currentTimeMillis();
+		// long startTime = System.currentTimeMillis();
 		HttpPost gtfsRoutePost = new HttpPost((prop.getProperty("api.getGTFSBusRouteURL")));
 
 		// System.out.println("Sending GTFS request with params size: " + paramList.size());
@@ -1022,10 +1019,10 @@ public class TripGenerator_WebAPI_batch_gtfsapi {
 
 			HttpResponse gtfsRouteResponse = httpClient.execute(gtfsRoutePost);
 
-			long endTime = System.currentTimeMillis();
-			long duration = endTime - startTime;
-			System.out.println("Request took: " + duration + " milliseconds");
-			writeLog(String.format("Request took: /%s milliseconds.\n", duration), appSession);
+			// long endTime = System.currentTimeMillis();
+			// long duration = endTime - startTime;
+			// System.out.println("Request took: " + duration + " milliseconds");
+			// writeLog(String.format("Request took: /%s milliseconds.\n", duration), appSession);
 
 			if (gtfsRouteResponse.getStatusLine().getStatusCode() == 200) {
 				// System.out.println("GTFS Route API request successful.");
@@ -1067,11 +1064,19 @@ public class TripGenerator_WebAPI_batch_gtfsapi {
         mixedRoutePost.setHeader("Cookie", "WebApiSessionID=" + sessionid);
 
         HttpResponse mixedRouteResponse = null;
+
+		long startTime = System.currentTimeMillis();
+
         try {
             mixedRouteResponse = executePostRequest(httpClient, mixedRoutePost);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+
+		long endTime = System.currentTimeMillis();
+		long duration = endTime - startTime;
+		System.out.println("Request took: " + duration + " milliseconds");
+		
         ObjectMapper mapper = new ObjectMapper();
 
 		if (mixedRouteResponse.getStatusLine().getStatusCode() == 200) {
@@ -1217,14 +1222,10 @@ public class TripGenerator_WebAPI_batch_gtfsapi {
 		// System.out.printf("appDate: %s",appDate);
 
 		Map<String, String> mixedparams = new HashMap<>(params);
-		if(getRandom()>0.5){
-			mixedparams.put("TransportCode", "1");
-		}else {
-			mixedparams.put("TransportCode", "3");
-		}
+		mixedparams.put("TransportCode", "3"); 
 		mixedparams.put("AppDate", appDate);
 		mixedparams.put("AppTime", convertSecondsToHHMM(startTime));
-		mixedparams.put("MaxRoutes", String.valueOf(1));
+		mixedparams.put("MaxRoutes", String.valueOf(6));
 		mixedparams.put("MaxRadius", String.valueOf(1000));
 		return mixedparams;
 	}

@@ -106,7 +106,7 @@ public class TripGenerator_WebAPI_refactor_taxi_nishio {
 						.register("http", PlainConnectionSocketFactory.INSTANCE)
 						.build());
 
-		connManager.setMaxTotal(32); // Adjust based on your expected total number of concurrent connections
+		connManager.setMaxTotal(1); // Adjust based on your expected total number of concurrent connections
 		connManager.setDefaultMaxPerRoute(100); // Adjust per route limits based on your API and use case
 
 		return connManager;
@@ -642,7 +642,7 @@ public class TripGenerator_WebAPI_refactor_taxi_nishio {
             mixedparams.put("TransportCode", "3"); // fixed as original
             mixedparams.put("AppDate", "20241001");
             mixedparams.put("AppTime", convertSecondsToHHMM(startTime));
-            mixedparams.put("MaxRoutes", String.valueOf("9"));
+            mixedparams.put("MaxRoutes", String.valueOf("6"));
             mixedparams.put("MaxRadius", String.valueOf("1000"));
             return mixedparams;
         }
@@ -667,7 +667,8 @@ public class TripGenerator_WebAPI_refactor_taxi_nishio {
 	
 	public void generate(List<Person> agents) {
 		// prepare thread processing
-		int numThreads = Runtime.getRuntime().availableProcessors();
+		// int numThreads = Runtime.getRuntime().availableProcessors();
+		int numThreads = 1;
 		System.out.println("NumOfThreads:" + numThreads);
 		
 		List<Callable<Integer> > listTasks = new ArrayList<>();
