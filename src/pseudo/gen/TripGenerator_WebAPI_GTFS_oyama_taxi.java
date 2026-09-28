@@ -78,7 +78,7 @@ class OyamaStationUsage {
 }
 
 
-public class TripGenerator_WebAPI_GTFS_oyama {
+public class TripGenerator_WebAPI_GTFS_oyama_taxi {
 
     private final Network drm;
 	private List<gtfs.Trip> trips;
@@ -101,12 +101,19 @@ public class TripGenerator_WebAPI_GTFS_oyama {
 	private static final double FATIGUE_INDEX_BICYCLE = 0.9;
 	private static final double FARE_INIT = 150; // Japanese yen, only for vehicle
 	private static final double CAR_AVAILABILITY = 0.7; // Parameter for explain people using car without ownership
+	private static final double TAXI_WAIT_SECOND = 5 * 60; // 5 mins waiting time
+	private static final double TAXI_BASE_DISTANCE = 1.2; // km, initial distance
+	private static final double TAXI_BASE_FARE = 660; // yen, initial fare
+	private static final double TAXI_INCREMENT = 279; // m, distance per increment
+	private static final double TAXI_INCREMENT_FARE = 90; // yen, price per increment
+	private static final double TAXI_DISCOUNT = 0.8; // discount for ride share
+	// private static final double TAXI_FARE_FIX = 300; // Japanese yen, taxi fare
 //	private static final HashMap<String, Integer> originStationCount = new HashMap<>();
 //  Instead of a single HashMap for origin stations:
 	private static final ConcurrentHashMap<String, OyamaStationUsage> stationUsageMap = new ConcurrentHashMap<>();
 
 
-	public TripGenerator_WebAPI_GTFS_oyama(Country japan, Network drm, List<gtfs.Trip> trips, List<StopTime> stopTimes, List<Stop> stops, List<FareRule> fareRules, List<Fare> fares) throws Exception {
+	public TripGenerator_WebAPI_GTFS_oyama_taxi(Country japan, Network drm, List<gtfs.Trip> trips, List<StopTime> stopTimes, List<Stop> stops, List<FareRule> fareRules, List<Fare> fares) throws Exception {
 		super();
         this.drm = drm;
 
@@ -256,6 +263,7 @@ public class TripGenerator_WebAPI_GTFS_oyama {
 				case WALK: return 6;
 				case BICYCLE: return 3;
 				case CAR: return 1;
+				case TAXI: return 1;
 				default: return 1;
 			}
 		}
@@ -337,6 +345,21 @@ public class TripGenerator_WebAPI_GTFS_oyama {
 					choices.put(ETransport.CAR, roadcost);
 				}
 
+				// TAXI
+				double taxiFare;
+				if (route.getLength() / 1000.0 <= TAXI_BASE_DISTANCE) {
+					taxiFare = TAXI_BASE_FARE;
+				} else {
+					double extraDistance = route.getLength() - TAXI_BASE_DISTANCE * 1000;
+					double increments = Math.ceil(extraDistance / TAXI_INCREMENT);
+					taxiFare = TAXI_BASE_FARE + increments * TAXI_INCREMENT_FARE;
+				}
+				double travelTimeCost = roadtime / 3600 * vot;
+				double taxiWaitCost = (TAXI_WAIT_SECOND / 3600.0) * vot;
+				double taxiCost = taxiFare * TAXI_DISCOUNT + travelTimeCost + taxiWaitCost;
+				choices.put(ETransport.TAXI, taxiCost);
+
+				// WALK
 				double walktime = route.getLength() / 1.38;
 //				double walkcost = walktime / 3600 * vot * FATIGUE_INDEX_WALK;
 //				if(age>65){
@@ -787,7 +810,7 @@ public class TripGenerator_WebAPI_GTFS_oyama {
 						int multiplier = calculateMultiplier(nextMode);
 						long travelTime = 0;
 
-						if (nextMode == ETransport.WALK || nextMode == ETransport.BICYCLE || nextMode == ETransport.CAR || nextMode == ETransport.COMMUNITY) {
+						if (nextMode == ETransport.WALK || nextMode == ETransport.BICYCLE || nextMode == ETransport.CAR || nextMode == ETransport.TAXI || nextMode == ETransport.COMMUNITY) {
 							travelTime = calculateTravelTime(route, multiplier);
 							endTime += travelTime;
 
@@ -1063,7 +1086,7 @@ public class TripGenerator_WebAPI_GTFS_oyama {
 			System.out.println("Processing activities in directory: " + actDir.getAbsolutePath());
 
 			// Prepare the main TripGenerator with the chosen GTFS data
-			TripGenerator_WebAPI_GTFS_oyama worker = new TripGenerator_WebAPI_GTFS_oyama(
+			TripGenerator_WebAPI_GTFS_oyama_taxi worker = new TripGenerator_WebAPI_GTFS_oyama_taxi(
 					japan,         // the Country object
 					road,          // road network
 					trips,
