@@ -872,6 +872,8 @@ public class TripGenerator_WebAPI_GTFS_oyama_taxi {
 			mixedparams.put("TransportCode", "1"); // 1 only train
 			mixedparams.put("AppDate", "20240401");
 			mixedparams.put("AppTime", convertSecondsToHHMM(startTime));
+            mixedparams.put("MaxRoutes", String.valueOf("6"));
+            mixedparams.put("MaxRadius", String.valueOf("1000"));
 			return mixedparams;
 		}
 
